@@ -2,7 +2,7 @@
 ingest.py – create FAISS index + SQLite catalog from a CSV
 
 Usage:
-    python ingest.py products_mock.csv
+    python ingest/ingest.py data/processed/products_mock.csv
 
 Requirements:
     pip install sentence-transformers faiss-cpu pandas tqdm
