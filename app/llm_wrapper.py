@@ -3,24 +3,13 @@ import requests, json
 
 MODEL = "gemma2:2b"
 
-# SYSTEM = ("Eres un experto ferretero. Responde en español, "
-#           "menciona siempre el SKU del producto recomendado "
-#           "y explica brevemente el porqué.")
-
-SYSTEM = ("""
-Eres un experto ferretero experto. Instrucciones:
-1. Lee SOLO la lista “Catálogo relevante”.
-2. Si encuentras al menos 1 producto que resuelva la pregunta, cítalos copiando SKU, nombre y precio exactamente como aparecen.
-3. Explica brevemente (máx. 3 frases) por qué son adecuados.
-4. Si ninguno sirve, responde: «No hay producto recomendable en el catálogo.
-5. Responde SIEMPRE en español claro, técnico y con un tono amigable.
-""")
+SYSTEM = ("Eres un técnico experto en equipos de calefacción. Tu tarea es responder preguntas basándote en productos de: Catálogo relevante")
 
 
 def answer(question: str, context: list[dict]) -> str:
     prompt = SYSTEM + "\n\n" \
         "Catálogo relevante:\n" + \
-        "\n".join(f"- {p['sku']}: {p['name']} — {p['description']} — {p['price']}"
+        "\n".join(f"- {p['type']}: {p['family']} — {p['model']} — {p['description']} — {p['dimentions']} - {p['power_w']} - {p['liters']} - {p['max_pressure_bar']}"
                   for p in context) + \
         f"\n\nPregunta: {question}\nRespuesta:"
 

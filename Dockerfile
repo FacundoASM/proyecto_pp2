@@ -25,11 +25,22 @@ COPY requirements.txt .
 # which minimizes compilation time for common packages on standard architectures.
 # If builds are slow due to compilation, check if wheels are available for your specific
 # dependencies and platform, or if required system build tools are missing (see above).
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# RUN pip install --no-cache-dir --upgrade pip; \
+    # pip install --no-cache-dir -r requirements.txt
+
+# Instalar dependencias del sistema necesarias
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 
 # Create a non-root user and group for security
 RUN addgroup --system app && adduser --system --ingroup app app
+
+
+
+
 
 # Copy the rest of the application code into the container
 # Ensure .dockerignore is properly configured to exclude unnecessary files

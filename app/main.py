@@ -7,7 +7,6 @@ app = FastAPI()
 
 @app.get("/ask")
 def ask(question: str = Query(..., min_length=5)):
-    top_items = query.search(question, k=5)
+    top_items = query.search_filtered(question, top_k=5)
     respuesta = answer(question, top_items)
     return {"respuesta": respuesta, "productos": top_items}
-    # return {"respuesta": respuesta}
