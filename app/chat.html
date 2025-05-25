@@ -61,23 +61,56 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto p-4 max-w-2xl">
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <!-- Header -->
-            <div class="bg-blue-800 text-white p-4">
-                <h1 class="text-xl font-bold">PEISA - SOLDASUR S.A</h1>
-                <p class="text-sm opacity-80">Asistente para cálculos de calefacción</p>
-            </div>
-            
-            <!-- Chat container -->
-            <div id="chat-container" class="p-4 h-96 overflow-y-auto space-y-3">
-                <!-- Mensajes aparecerán aquí -->
-            </div>
-            
-            <!-- Input area -->
-            <div id="input-area" class="p-4 border-t border-gray-200 bg-gray-50">
-                <!-- Se llenará dinámicamente según el tipo de pregunta -->
+<body class="bg-gray-100 min-h-screen">    
+    <div class="container mx-auto p-4 max-w-7xl h-screen">
+        <div class="grid grid-cols-2 gap-8 h-full">
+            <!-- Panel izquierdo - Chat existente -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+                <!-- Header -->
+                <div class="bg-blue-800 text-white p-4">
+                    <h1 class="text-xl font-bold">PEISA - SOLDASUR S.A</h1>
+                    <p class="text-sm opacity-80">Asistente para cálculos de calefacción</p>
+                </div>
+                  <!-- Chat container -->
+                <div id="chat-container" class="flex-1 p-4 pb-6 overflow-y-auto space-y-3">
+                    <!-- Mensajes aparecerán aquí -->
+                </div>
+                
+                <!-- Input area -->
+                <div id="input-area" class="p-4 border-t border-gray-200 bg-gray-50 mt-auto">
+                    <!-- Se llenará dinámicamente según el tipo de pregunta -->
+                </div>
+            </div>            <!-- Panel derecho - Nuevo chat LLM -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+                <!-- Header -->
+                <div class="bg-blue-800 text-white p-4">
+                    <h1 class="text-xl font-bold">Consultas Generales</h1>
+                    <p class="text-sm opacity-80">Asistente con IA</p>
+                </div>
+                
+                <!-- Chat container -->                <div id="llm-chat-container" class="flex-1 p-4 pb-6 overflow-y-auto space-y-3">
+                    <!-- Mensajes LLM aparecerán aquí -->
+                </div>
+                
+                <!-- Input area -->
+                <div class="p-4 border-t border-gray-200 bg-gray-50 mt-auto">
+                    <form id="llm-form" class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="llm-input" 
+                            class="flex-1 border border-gray-300 rounded px-3 py-2"
+                            placeholder="Escribe tu pregunta..."
+                            required
+                        >
+                        <button 
+                            type="submit" 
+                            class="bg-blue-800 text-white px-4 py-2 rounded hover:bg-green-700 transition flex items-center gap-2"
+                        >
+                            <span>Enviar</span>
+                            <div id="llm-spinner" class="loading-spinner hidden"></div>
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -373,9 +406,64 @@
             const inputArea = document.getElementById('input-area');
             inputArea.innerHTML = '<div class="text-center py-2"><div class="loading-spinner inline-block"></div></div>';
         }
-        
-        function hideLoadingIndicator() {
+          function hideLoadingIndicator() {
             // Se maneja en las funciones que muestran contenido
+        }
+
+        // Código para el chat LLM
+        document.getElementById('llm-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('llm-input');
+            const question = input.value.trim();
+            const spinner = document.getElementById('llm-spinner');
+            
+            if (question.length < 5) {
+                alert('La pregunta debe tener al menos 5 caracteres');
+                return;
+            }
+
+            // Mostrar pregunta del usuario
+            appendLLMMessage('user', question);
+            input.value = '';
+            
+            // Mostrar spinner
+            spinner.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`/ask?question=${encodeURIComponent(question)}`);
+                const data = await response.json();
+                
+                // Mostrar respuesta
+                let responseText = data.respuesta;
+                
+                // Agregar productos relacionados si existen
+                // if (data.productos && data.productos.length > 0) {
+                    // responseText += '\n\nProductos relacionados:\n';
+                //     data.productos.forEach(product => {
+                //         responseText += `• ${product.name}: ${product.description}\n`;
+                //     });
+                // }
+                
+                appendLLMMessage('system', responseText);
+            } catch (error) {
+                appendLLMMessage('system', 'Error: No se pudo procesar tu pregunta. Por favor intenta nuevamente.');
+                console.error('Error:', error);
+            } finally {
+                spinner.classList.add('hidden');
+            }
+        });
+
+        function appendLLMMessage(sender, text) {
+            const chatContainer = document.getElementById('llm-chat-container');
+            const messageDiv = document.createElement('div');
+            
+            messageDiv.className = `chat-message rounded-lg p-3 ${
+                sender === 'user' ? 'user-message' : 'system-message'
+            }`;
+            
+            messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
     </script>
 </body>
