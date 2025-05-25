@@ -16,7 +16,7 @@ def answer(question: str, context: list[dict]) -> str:
     resp = requests.post(
     "http://localhost:11434/api/generate",
     json={"model": MODEL, "prompt": prompt, "stream": False},
-    timeout=60
+    timeout=180
     ).json()
 
     print("DEBUG Ollama:", resp)   #  ← añade esta línea
