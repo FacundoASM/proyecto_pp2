@@ -1,0 +1,285 @@
+{
+  "name": "Soldasur",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -20,
+        40
+      ],
+      "id": "7f1146b0-6e59-42c1-ad8a-d3d5c55cca4c",
+      "name": "Telegram Trigger",
+      "webhookId": "24cf288f-81db-44e4-8ebc-1e7858f61914",
+      "credentials": {
+        "telegramApi": {
+          "id": "pYPbAKqFzaie9Fpd",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Responde el mensaje como un experto en sistemas de calefaccion, calderas, radiadores y piso radiante con la información de la herramienta \"Google Sheets\" de la forma mas clara, breve, amable y técnica posible. Debes responder en lenguaje natural sin escribir caracteres especiales (*, -, _, {}, etc)\n\n{{ $json.message.text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        220,
+        40
+      ],
+      "id": "8ff3cbcf-c93b-40bb-8b3c-d85d22cee386",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        620
+      ],
+      "id": "639cbdbc-9aee-48e4-be0d-28ba4c33e976",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "xU2jm5sW5M6y8Vaj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        220
+      ],
+      "id": "be0b545b-3131-4dd7-a860-f8a089775517",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1V4DnjCA1f1FvGq0mr0CTVCdpembrxp1GfvGAFGN9_Fs",
+          "mode": "list",
+          "cachedResultName": "Products_db",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V4DnjCA1f1FvGq0mr0CTVCdpembrxp1GfvGAFGN9_Fs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1241689683,
+          "mode": "list",
+          "cachedResultName": "products",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V4DnjCA1f1FvGq0mr0CTVCdpembrxp1GfvGAFGN9_Fs/edit#gid=1241689683"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        560,
+        620
+      ],
+      "id": "c1d303a1-76a4-4c46-9bb8-0b60ac9f147d",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "V8RdVIiquDU5zUSU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        660,
+        40
+      ],
+      "id": "c4eeb607-4a99-420a-b0e5-7f95a1980a83",
+      "name": "Telegram",
+      "webhookId": "b61e1d76-8717-473d-9ddc-d79becbc548d",
+      "credentials": {
+        "telegramApi": {
+          "id": "pYPbAKqFzaie9Fpd",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "public": true,
+        "mode": "webhook",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -20,
+        360
+      ],
+      "id": "6cf45264-430b-44b6-b17c-48b1cf50496f",
+      "name": "When chat message received",
+      "webhookId": "c8ba784d-8ab0-479b-ab4f-4ee19b268753"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Responde el mensaje como un experto en sistemas de calefaccion, calderas, radiadores y piso radiante con la información de la herramienta \"Google Sheets\" de la forma mas clara, breve, amable y técnica posible.\n\n{{ $json.chatInput }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        200,
+        360
+      ],
+      "id": "dfef92d3-fe77-4a9e-8c93-c43d237c0b3e",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        620
+      ],
+      "id": "60f0cf0f-fa4c-4344-a78d-455dfe52d429",
+      "name": "Simple Memory1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0b9694ed-6445-4f6e-8d89-6d9128a52313",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9c9001b2f2452c277f12546d93e9dbc3b6ad979005d6c940a02d7caba79590fb"
+  },
+  "id": "SZAXkWYsX44vzuav",
+  "tags": []
+}

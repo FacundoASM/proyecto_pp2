@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PEISA - SOLDASUR S.A</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <style>
+        /* --- Estilos heredados --- */
+        .chat-message { max-width: 80%; word-wrap: break-word; }
+        .user-message { margin-left: auto; background-color: #05684f; color: white; }
+        .system-message { background-color: #02287a; color: white; }
+        .option-btn { transition: all 0.2s; }
+        .option-btn:hover { transform: translateY(-2px); }
+        input[inputmode="decimal"] { font-family: monospace; }
+        .input-hint { font-size: 0.75rem; color: #0d1e4a; margin-top: 0.25rem; }
+        .error-message { color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; }
+        .response-item { margin: 0.25rem 0; padding: 0.25rem 0; border-bottom: 1px solid #e5e7eb; }
+        .response-item:last-child { border-bottom: none; }
+        .loading-spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        /* --- Estilos para el overlay de login --- */
+        #login-overlay { backdrop-filter: blur(2px); }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Overlay de Login -->
+    <div id="login-overlay" class="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-50">
+        <div class="bg-white w-full max-w-sm rounded-lg shadow-lg p-8 space-y-6">
+            <h2 class="text-2xl font-bold text-center text-gray-800">Iniciar Sesión</h2>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="login-username" class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+                    <input id="login-username" type="text" required class="w-full border border-gray-300 rounded px-3 py-2" placeholder="admin">
+                </div>
+                <div>
+                    <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                    <input id="login-password" type="password" required class="w-full border border-gray-300 rounded px-3 py-2" placeholder="admin">
+                </div>
+                <p id="login-error" class="text-red-600 text-sm"></p>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Acceder</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Contenido principal (oculto detrás del overlay hasta login) -->
+    <div class="container mx-auto p-4 max-w-7xl h-screen">
+        <div class="grid grid-cols-2 gap-8 h-full">
+            <!-- Panel izquierdo - Chat existente -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+                <!-- Header -->
+                <div class="bg-blue-800 text-white p-4">
+                    <h1 class="text-xl font-bold">PEISA - SOLDASUR S.A</h1>
+                    <p class="text-sm opacity-80">Asistente para cálculos de calefacción</p>
+                </div>
+                <!-- Chat container -->
+                <div id="chat-container" class="flex-1 p-4 pb-6 overflow-y-auto space-y-3"></div>
+                <!-- Input area -->
+                <div id="input-area" class="p-4 border-t border-gray-200 bg-gray-50 mt-auto"></div>
+            </div>
+            <!-- Panel derecho - Nuevo chat LLM -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+                <!-- Header -->
+                <div class="bg-blue-800 text-white p-4">
+                    <h1 class="text-xl font-bold">Consultas Generales</h1>
+                    <p class="text-sm opacity-80">Asistente con IA</p>
+                </div>
+                <!-- Chat container -->
+                <div id="llm-chat-container" class="flex-1 p-4 pb-6 overflow-y-auto space-y-3"></div>
+                <!-- Input area LLM -->
+                <div class="p-4 border-t border-gray-200 bg-gray-50 mt-auto">
+                    <!-- <form id="llm-form" class="flex gap-2">
+                        <input type="text" id="llm-input" class="flex-1 border border-gray-300 rounded px-3 py-2" placeholder="Escribe tu pregunta..." required>
+                        <button type="submit" class="bg-blue-800 text-white px-4 py-2 rounded hover:bg-green-700 transition flex items-center gap-2">
+                            <span>Enviar</span>
+                            <div id="llm-spinner" class="loading-spinner hidden"></div>
+                        </button>
+                    </form> -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==== Scripts ==== -->
+    <script>
+        /* ----------------- Estado Global ----------------- */
+        let conversationId = 'user_' + Math.random().toString(36).substr(2, 9);
+        let lastUserResponse = null;
+        let isLoading = false;
+
+        /* ----------------- Login ----------------- */
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('login-form');
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const username = document.getElementById('login-username').value.trim();
+                const password = document.getElementById('login-password').value.trim();
+                const errorLabel = document.getElementById('login-error');
+
+                if (username === 'admin' && password === 'admin') {
+                    // Ocultar overlay
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    // Iniciar chat
+                    startConversation();
+                } else {
+                    errorLabel.textContent = 'Usuario o contraseña incorrectos';
+                }
+            });
+        });
+
+        /* ----------------- Lógica del Chat de Cálculo ----------------- */
+        function startConversation() {
+            if (isLoading) return;
+            isLoading = true;
+            showLoadingIndicator();
+
+            fetch('/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversation_id: conversationId })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Error en la respuesta del servidor');
+                return res.json();
+            })
+            .then(data => {
+                isLoading = false;
+                hideLoadingIndicator();
+                handleServerResponse(data);
+            })
+            .catch(err => {
+                isLoading = false;
+                hideLoadingIndicator();
+                appendMessage('system', '<span class="text-red-600">Error al conectar con el servidor. Por favor recarga la página.</span>');
+                console.error('Error:', err);
+            });
+        }
+
+        function handleServerResponse(response) {
+            if (response.error) {
+                if (response.type === 'input_error') {
+                    appendMessage('system', `<span class="text-red-600">${response.error}</span><br>${response.text}`);
+                    recreateInputFields(response.node_id);
+                } else {
+                    appendMessage('system', '<span class="text-red-600">Error: ' + response.error + '</span>');
+                }
+                return;
+            }
+
+            const chatContainer = document.getElementById('chat-container');
+            const inputArea = document.getElementById('input-area');
+            inputArea.innerHTML = '';
+
+            // Mostrar mensaje del usuario si existe
+            if (lastUserResponse) { appendMessage('user', lastUserResponse); lastUserResponse = null; }
+
+            // Mensaje del sistema
+            if (response.text) { appendMessage('system', formatResponseText(response.text)); }
+
+            // Procesar tipos
+            if (response.type === 'question') {
+                if (response.options) {
+                    const optionsDiv = document.createElement('div'); optionsDiv.className = 'space-y-2';
+                    response.options.forEach((option, idx) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'option-btn w-full bg-blue-100 hover:bg-blue-200 text-blue-800 py-2 px-4 rounded';
+                        btn.textContent = option;
+                        btn.onclick = () => { if (isLoading) return; lastUserResponse = option; selectOption(idx); };
+                        optionsDiv.appendChild(btn);
+                    });
+                    inputArea.appendChild(optionsDiv);
+                } else if (response.input_type === 'number') {
+                    createNumberInput(response);
+                } else if (response.input_type === 'multiple') {
+                    createDimensionsInputForm();
+                }
+            } else if (response.type === 'response') {
+                if (response.options) {
+                    const optionsDiv = document.createElement('div'); optionsDiv.className = 'space-y-2 mt-3';
+                    response.options.forEach((option, idx) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'option-btn w-full bg-green-100 hover:bg-green-200 text-green-800 py-2 px-4 rounded';
+                        btn.textContent = option;
+                        btn.onclick = () => { if (isLoading) return; lastUserResponse = option; selectOption(idx); };
+                        optionsDiv.appendChild(btn);
+                    });
+                    inputArea.appendChild(optionsDiv);
+                } else if (response.is_final) {
+                    const restartBtn = document.createElement('button');
+                    restartBtn.className = 'w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition';
+                    restartBtn.textContent = 'Iniciar nuevo cálculo';
+                    restartBtn.onclick = () => {
+                        if (isLoading) return;
+                        conversationId = 'user_' + Math.random().toString(36).substr(2, 9);
+                        document.getElementById('chat-container').innerHTML = '';
+                        lastUserResponse = null;
+                        startConversation();
+                    };
+                    inputArea.appendChild(restartBtn);
+                }
+            }
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showLoadingIndicator() {
+            document.getElementById('input-area').innerHTML = '<div class="text-center py-2"><div class="loading-spinner inline-block"></div></div>';
+        }
+        function hideLoadingIndicator() { /* el contenido se actualiza en cada respuesta */ }
+
+        function appendMessage(sender, text) {
+            const chatContainer = document.getElementById('chat-container');
+            const div = document.createElement('div');
+            div.className = `chat-message rounded-lg p-3 ${sender === 'system' ? 'system-message' : 'user-message'}`;
+            div.innerHTML = text;
+            chatContainer.appendChild(div);
+        }
+
+        function formatResponseText(text) { return text ? text.replace(/\n/g, '<br>').replace(/<br>- /g, '<br>• ') : ''; }
+
+        /* ---- Helpers para inputs ---- */
+        function createNumberInput(response) {
+            const inputArea = document.getElementById('input-area');
+            const form = document.createElement('form');
+            form.onsubmit = (e) => {
+                e.preventDefault(); if (isLoading) return;
+                const value = document.getElementById('input-value').value; lastUserResponse = value; sendReply({ input_values: { value } });
+            };
+            form.innerHTML = `
+                <div class="flex flex-col space-y-2">
+                    <input type="text" inputmode="decimal" id="input-value" required class="border border-gray-300 rounded px-3 py-2" placeholder="${response.input_label || 'Ej: 12.5'}">
+                    <div class="input-hint">Ingrese un valor${response.input_label && response.input_label.includes('superficie') ? ' en m²' : ''}</div>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">Enviar</button>
+                </div>`;
+            inputArea.appendChild(form);
+            document.getElementById('input-value').focus();
+        }
+
+        function createDimensionsInputForm() {
+            const inputArea = document.getElementById('input-area');
+            const form = document.createElement('form');
+            form.onsubmit = (e) => {
+                e.preventDefault(); if (isLoading) return;
+                const values = { largo: document.getElementById('input-largo').value, ancho: document.getElementById('input-ancho').value, alto: document.getElementById('input-alto').value };
+                let valid = true; const responses = [];
+                ['largo','ancho','alto'].forEach(id => {
+                    const inp = document.getElementById(`input-${id}`); const err = document.getElementById(`error-${id}`); const val = inp.value.replace(',', '.');
+                    if (isNaN(parseFloat(val)) || parseFloat(val) <= 0) { err.textContent = 'Ingrese un número válido'; valid = false; } else { err.textContent = ''; responses.push(`${id}: ${val} m`); }
+                });
+                if (valid) { lastUserResponse = `Dimensiones: ${responses.join(', ')}`; sendReply({ input_values: values }); }
+            };
+            form.innerHTML = `
+                <div class="space-y-4">
+                    ${['largo','ancho','alto'].map(id => `
+                    <div>
+                        <label for="input-${id}" class="block text-sm font-medium text-gray-700 mb-1">${id.charAt(0).toUpperCase()+id.slice(1)} (m)</label>
+                        <input type="text" inputmode="decimal" id="input-${id}" required class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Ej: 4.5">
+                        <div id="error-${id}" class="error-message"></div>
+                    </div>`).join('')}
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition">Calcular</button>
+                </div>`;
+            inputArea.appendChild(form);
+            document.getElementById('input-largo').focus();
+        }
+
+        function selectOption(optionIndex) { sendReply({ option_index: optionIndex }); }
+
+        function sendReply(data) {
+            if (isLoading) return; isLoading = true; showLoadingIndicator(); data.conversation_id = conversationId;
+            fetch('/reply', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+            })
+            .then(res => { if (!res.ok) throw new Error('Error en la respuesta del servidor'); return res.json(); })
+            .then(data => { isLoading = false; hideLoadingIndicator(); handleServerResponse(data); })
+            .catch(err => { isLoading = false; hideLoadingIndicator(); appendMessage('system', '<span class="text-red-600">Error al enviar la respuesta. Por favor intenta nuevamente.</span>'); console.error('Error:', err); });
+        }
+
+        /* ----------------- Lógica del Chat LLM (Consultas Generales) ----------------- */
+        document.getElementById('llm-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('llm-input');
+            const question = input.value.trim();
+            const spinner = document.getElementById('llm-spinner');
+            if (question.length < 5) { alert('La pregunta debe tener al menos 5 caracteres'); return; }
+            appendLLMMessage('user', question);
+            input.value = '';
+            spinner.classList.remove('hidden');
+            try {
+                const res = await fetch(`/ask?question=${encodeURIComponent(question)}`);
+                const data = await res.json();
+                appendLLMMessage('system', data.respuesta || 'Sin respuesta');
+            } catch (err) {
+                appendLLMMessage('system', 'Error: No se pudo procesar tu pregunta.'); console.error('Error:', err);
+            } finally { spinner.classList.add('hidden'); }
+        });
+
+        function appendLLMMessage(sender, text) {
+            const chatContainer = document.getElementById('llm-chat-container');
+            const div = document.createElement('div');
+            div.className = `chat-message rounded-lg p-3 ${sender === 'user' ? 'user-message' : 'system-message'}`;
+            div.innerHTML = text.replace(/\n/g, '<br>');
+            chatContainer.appendChild(div); chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>

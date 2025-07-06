@@ -202,3 +202,9 @@ Repositorio Git (branch main + feature branches).
 | CSV con formatos incoherentes  | Validación pydantic + plantilla ejemplo.                       |
 | Escalabilidad catálogo > 100 k | Migrar de FAISS local a Qdrant Cloud (misma API de LangChain). |
 | Tiempo de respuesta alto       | Cache de embeddings y respuestas frecuentes.                   |
+
+## 8. Lanzar la aplicación
+
+```cmd
+uvicorn app.main:app --reload
+```
